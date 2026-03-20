@@ -2,17 +2,32 @@ use std::process;
 use std::time::Duration;
 
 use clap::{Parser, Subcommand};
+use clap::builder::styling::{AnsiColor, Effects, Styles};
 
 use random_flight::{
     Aircraft, FlightPlanOptions, aircraft_by_name, built_in_aircraft,
     generate_flight_plan,
 };
 
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+    .usage(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+    .literal(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .placeholder(AnsiColor::Cyan.on_default());
+
 #[derive(Parser)]
 #[command(
     name = "random-flight",
     about = "Generate random flight plans for flight simulators",
+    long_about = "Generate random flight plans for flight simulators.\n\n\
+        Pick an aircraft, set a target block time, and get a realistic departure/arrival \
+        pair with full climb/cruise/descent breakdown.",
     subcommand_required = true,
+    styles = STYLES,
+    after_help = "Examples:\n  \
+        random-flight generate --aircraft B738 --time 4h\n  \
+        random-flight generate --aircraft C172 --time 1h30m --departure KJFK\n  \
+        random-flight aircraft",
 )]
 struct Cli {
     #[command(subcommand)]
@@ -22,6 +37,13 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Generate a random flight plan
+    #[command(
+        after_help = "Examples:\n  \
+            random-flight generate --aircraft B738 --time 4h\n  \
+            random-flight generate --aircraft C172 --time 1h30m --departure KJFK\n  \
+            random-flight generate --aircraft custom --cruise-speed 450 --cruise-alt 35000 \
+            --climb-rate 2000 --descent-rate 1800 --range 3000 --min-runway 6000 --time 3h"
+    )]
     Generate(GenerateArgs),
     /// List available aircraft presets
     Aircraft,
@@ -37,7 +59,7 @@ struct GenerateArgs {
     #[arg(long)]
     time: String,
 
-    /// Tolerance around target time [default: 15m]
+    /// Tolerance around target time
     #[arg(long, default_value = "15m")]
     tolerance: String,
 
@@ -49,28 +71,28 @@ struct GenerateArgs {
     #[arg(long)]
     arrival: Option<String>,
 
-    /// Custom aircraft: cruise speed in knots
-    #[arg(long)]
+    /// Cruise speed in knots
+    #[arg(long, help_heading = "Custom Aircraft")]
     cruise_speed: Option<u16>,
 
-    /// Custom aircraft: cruise altitude in feet
-    #[arg(long)]
+    /// Cruise altitude in feet
+    #[arg(long, help_heading = "Custom Aircraft")]
     cruise_alt: Option<u32>,
 
-    /// Custom aircraft: climb rate in ft/min
-    #[arg(long)]
+    /// Climb rate in ft/min
+    #[arg(long, help_heading = "Custom Aircraft")]
     climb_rate: Option<u16>,
 
-    /// Custom aircraft: descent rate in ft/min
-    #[arg(long)]
+    /// Descent rate in ft/min
+    #[arg(long, help_heading = "Custom Aircraft")]
     descent_rate: Option<u16>,
 
-    /// Custom aircraft: range in nautical miles
-    #[arg(long)]
+    /// Range in nautical miles
+    #[arg(long, help_heading = "Custom Aircraft")]
     range: Option<u32>,
 
-    /// Custom aircraft: minimum runway length in feet
-    #[arg(long)]
+    /// Minimum runway length in feet
+    #[arg(long, help_heading = "Custom Aircraft")]
     min_runway: Option<u32>,
 }
 
