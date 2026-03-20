@@ -15,15 +15,15 @@ cargo test --lib         # Unit tests only
 cargo test --test integration  # Integration tests only
 cargo test <test_name>   # Run a single test by name
 cargo clippy             # Lint
-cargo run -- --aircraft B738 --time 4h   # Example run
-cargo run -- --list-aircraft             # List aircraft presets
+cargo run -- generate --aircraft B738 --time 4h   # Example run
+cargo run -- aircraft                              # List aircraft presets
 ```
 
 ## Architecture
 
 **Build-time data pipeline** (`build.rs`): Downloads airport/runway CSVs from OurAirports, filters to hard-surface runways and ICAO-coded airports, and generates `airport_db.rs` compiled into the binary. Falls back to cached CSVs in `data/` if download fails.
 
-**Core flow**: CLI (`src/bin/main.rs`) → `selection::generate_flight_plan()` → `flight_plan::calculate_flight_plan()` → `geo::haversine_distance_nm()`
+**Core flow**: CLI (`src/main.rs`) → `selection::generate_flight_plan()` → `flight_plan::calculate_flight_plan()` → `geo::haversine_distance_nm()`
 
 **Selection algorithm** (`selection.rs`): Estimates target distance from block time, filters airports by runway length, then randomly samples departure/arrival pairs within a distance band until one matches the target block time within tolerance. Supports pinning departure and/or arrival.
 
