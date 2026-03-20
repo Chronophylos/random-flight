@@ -82,7 +82,7 @@ pub fn calculate_flight_plan(
     }
 }
 
-/// Estimate the cruise-only distance for a target block time.
+/// Estimate the total flight distance for a target block time.
 /// Used by the selection algorithm to narrow the airport search band.
 pub fn estimate_distance_for_block_time(
     aircraft: &Aircraft,

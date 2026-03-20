@@ -129,6 +129,10 @@ fn plan_for_pair(
     aircraft: &Aircraft,
     taxi_time: Duration,
 ) -> Result<FlightPlan, Error> {
+    if dep_icao.eq_ignore_ascii_case(arr_icao) {
+        return Err(Error::NoCandidateArrivals);
+    }
+
     let dep = airport::find_by_icao(dep_icao)
         .ok_or_else(|| Error::UnknownAirport { icao: dep_icao.to_string() })?;
     let arr = airport::find_by_icao(arr_icao)
@@ -257,5 +261,19 @@ mod tests {
             .expect("should find a flight from EDDF");
 
         assert_eq!(fp.departure.icao, "EDDF");
+    }
+
+    #[test]
+    fn same_departure_and_arrival_rejected() {
+        let ac = aircraft_by_name("B738").expect("B738");
+        let opts = FlightPlanOptions {
+            departure_icao: Some("KJFK".into()),
+            arrival_icao: Some("KJFK".into()),
+            ..Default::default()
+        };
+
+        let mut rng = seeded_rng();
+        let result = generate_flight_plan_with_rng(ac, Duration::from_secs(3600), Some(opts), &mut rng);
+        assert!(matches!(result, Err(Error::NoCandidateArrivals)));
     }
 }

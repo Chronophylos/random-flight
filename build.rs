@@ -156,6 +156,7 @@ fn main() {
     }
     writeln!(f, "];").unwrap();
 
+    println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=data/airports.csv");
     println!("cargo:rerun-if-changed=data/runways.csv");
     println!("cargo:warning=Generated airport DB with {} airports", airports.len());
