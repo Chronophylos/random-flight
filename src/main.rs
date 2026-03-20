@@ -1,7 +1,7 @@
 use std::process;
 use std::time::Duration;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 use random_flight::{
     Aircraft, FlightPlanOptions, aircraft_by_name, built_in_aircraft,
@@ -9,17 +9,35 @@ use random_flight::{
 };
 
 #[derive(Parser)]
-#[command(name = "random-flight", about = "Generate random flight plans for flight simulators")]
+#[command(
+    name = "random-flight",
+    about = "Generate random flight plans for flight simulators",
+    subcommand_required = true,
+)]
 struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Generate a random flight plan
+    Generate(GenerateArgs),
+    /// List available aircraft presets
+    Aircraft,
+}
+
+#[derive(Parser)]
+struct GenerateArgs {
     /// Aircraft preset name (e.g. C172, B738, A320) or "custom"
-    #[arg(long, required_unless_present = "list_aircraft")]
-    aircraft: Option<String>,
+    #[arg(long)]
+    aircraft: String,
 
     /// Target block time (e.g. 2h, 2h30m, 90m)
-    #[arg(long, required_unless_present = "list_aircraft")]
-    time: Option<String>,
+    #[arg(long)]
+    time: String,
 
-    /// Tolerance around target time (default: 15m)
+    /// Tolerance around target time [default: 15m]
     #[arg(long, default_value = "15m")]
     tolerance: String,
 
@@ -54,59 +72,48 @@ struct Cli {
     /// Custom aircraft: minimum runway length in feet
     #[arg(long)]
     min_runway: Option<u32>,
-
-    /// List available aircraft presets
-    #[arg(long)]
-    list_aircraft: bool,
 }
 
 fn main() {
-    let cli = Cli::parse();
-
-    if cli.list_aircraft {
-        println!("Available aircraft presets:");
-        for a in built_in_aircraft() {
-            println!("  {:<6} {} kts, FL{:03}, range {} nm, min rwy {} ft",
-                a.name, a.cruise_speed_kts, a.cruise_altitude_ft / 100,
-                a.range_nm, a.min_runway_length_ft);
-        }
+    // Print help and exit 0 when invoked with no arguments.
+    // clap's arg_required_else_help exits with code 2, so we handle this manually.
+    let mut cmd = <Cli as clap::CommandFactory>::command();
+    if std::env::args_os().len() == 1 {
+        let _ = cmd.print_help();
+        println!();
         return;
     }
 
-    let aircraft_name = cli.aircraft.as_deref().unwrap();
-    let aircraft = if aircraft_name.eq_ignore_ascii_case("custom") {
-        let missing = |field: &str| -> ! {
-            eprintln!("Error: --{field} is required for custom aircraft");
-            process::exit(1);
-        };
-        Aircraft {
-            name: "Custom",
-            cruise_speed_kts: cli.cruise_speed.unwrap_or_else(|| missing("cruise-speed")),
-            cruise_altitude_ft: cli.cruise_alt.unwrap_or_else(|| missing("cruise-alt")),
-            climb_rate_fpm: cli.climb_rate.unwrap_or_else(|| missing("climb-rate")),
-            descent_rate_fpm: cli.descent_rate.unwrap_or_else(|| missing("descent-rate")),
-            climb_speed_factor: 0.75,
-            descent_speed_factor: 0.65,
-            range_nm: cli.range.unwrap_or_else(|| missing("range")),
-            min_runway_length_ft: cli.min_runway.unwrap_or_else(|| missing("min-runway")),
-        }
-    } else {
-        match aircraft_by_name(aircraft_name) {
-            Some(a) => a.clone(),
-            None => {
-                eprintln!("Error: unknown aircraft '{}'. Use --list-aircraft to see presets.", aircraft_name);
-                process::exit(1);
-            }
-        }
-    };
+    let cli = Cli::parse();
 
-    let target = parse_duration(cli.time.as_deref().unwrap());
-    let tolerance = parse_duration(&cli.tolerance);
+    match cli.command {
+        Commands::Aircraft => list_aircraft(),
+        Commands::Generate(args) => generate(args),
+    }
+}
+
+fn list_aircraft() {
+    println!("Available aircraft presets:\n");
+    println!("  {:<6} {:>5}  {:>7}  {:>8}  {:>10}",
+        "NAME", "SPD", "ALT", "RANGE", "MIN RWY");
+    println!("  {:<6} {:>5}  {:>7}  {:>8}  {:>10}",
+        "----", "---", "---", "-----", "-------");
+    for a in built_in_aircraft() {
+        println!("  {:<6} {:>3} kt  FL{:03}    {:>5} nm  {:>6} ft",
+            a.name, a.cruise_speed_kts, a.cruise_altitude_ft / 100,
+            a.range_nm, a.min_runway_length_ft);
+    }
+}
+
+fn generate(args: GenerateArgs) {
+    let aircraft = resolve_aircraft(&args);
+    let target = parse_duration(&args.time);
+    let tolerance = parse_duration(&args.tolerance);
 
     let opts = FlightPlanOptions {
         tolerance,
-        departure_icao: cli.departure,
-        arrival_icao: cli.arrival,
+        departure_icao: args.departure,
+        arrival_icao: args.arrival,
         ..Default::default()
     };
 
@@ -129,6 +136,34 @@ fn main() {
         Err(e) => {
             eprintln!("Error: {e}");
             process::exit(1);
+        }
+    }
+}
+
+fn resolve_aircraft(args: &GenerateArgs) -> Aircraft {
+    if args.aircraft.eq_ignore_ascii_case("custom") {
+        let missing = |field: &str| -> ! {
+            eprintln!("Error: --{field} is required for custom aircraft");
+            process::exit(1);
+        };
+        Aircraft {
+            name: "Custom",
+            cruise_speed_kts: args.cruise_speed.unwrap_or_else(|| missing("cruise-speed")),
+            cruise_altitude_ft: args.cruise_alt.unwrap_or_else(|| missing("cruise-alt")),
+            climb_rate_fpm: args.climb_rate.unwrap_or_else(|| missing("climb-rate")),
+            descent_rate_fpm: args.descent_rate.unwrap_or_else(|| missing("descent-rate")),
+            climb_speed_factor: 0.75,
+            descent_speed_factor: 0.65,
+            range_nm: args.range.unwrap_or_else(|| missing("range")),
+            min_runway_length_ft: args.min_runway.unwrap_or_else(|| missing("min-runway")),
+        }
+    } else {
+        match aircraft_by_name(&args.aircraft) {
+            Some(a) => a.clone(),
+            None => {
+                eprintln!("Error: unknown aircraft '{}'. Run `random-flight aircraft` to see presets.", args.aircraft);
+                process::exit(1);
+            }
         }
     }
 }

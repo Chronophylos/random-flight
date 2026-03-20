@@ -69,3 +69,43 @@ fn deterministic_with_same_seed() {
     assert_eq!(fp1.departure.icao, fp2.departure.icao);
     assert_eq!(fp1.arrival.icao, fp2.arrival.icao);
 }
+
+#[test]
+fn cli_generate_produces_flight_plan() {
+    let bin = env!("CARGO_BIN_EXE_random-flight");
+    let output = std::process::Command::new(bin)
+        .args(["generate", "--aircraft", "C172", "--time", "1h"])
+        .output()
+        .expect("failed to run binary");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("Flight Plan"), "expected flight plan output, got: {stdout}");
+    assert!(stdout.contains("Departure:"));
+    assert!(stdout.contains("Arrival:"));
+}
+
+#[test]
+fn cli_aircraft_lists_presets() {
+    let bin = env!("CARGO_BIN_EXE_random-flight");
+    let output = std::process::Command::new(bin)
+        .args(["aircraft"])
+        .output()
+        .expect("failed to run binary");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("C172"), "expected C172 in aircraft list");
+    assert!(stdout.contains("B738"), "expected B738 in aircraft list");
+}
+
+#[test]
+fn cli_no_subcommand_shows_help() {
+    let bin = env!("CARGO_BIN_EXE_random-flight");
+    let output = std::process::Command::new(bin)
+        .output()
+        .expect("failed to run binary");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Manual help guard in main() prints to stdout and exits 0
+    assert!(output.status.success());
+    assert!(stdout.contains("generate"), "expected 'generate' in help output");
+    assert!(stdout.contains("aircraft"), "expected 'aircraft' in help output");
+}
