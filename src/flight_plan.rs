@@ -37,7 +37,7 @@ pub fn calculate_flight_plan(
     let descent_speed = cruise_speed * aircraft.descent_speed_factor as f64;
 
     let mut cruise_alt = aircraft.cruise_altitude_ft;
-    let min_alt = (departure.elevation_ft.max(arrival.elevation_ft) + 1000) as u32;
+    let min_alt = (departure.elevation_ft.max(arrival.elevation_ft) + 1000).max(0) as u32;
 
     loop {
         let climb_ft = cruise_alt.saturating_sub(departure.elevation_ft.max(0) as u32) as f64;
