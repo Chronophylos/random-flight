@@ -80,11 +80,7 @@ fn main() {
             if rwy.closed == Some(1) {
                 continue;
             }
-            let surface = match &rwy.surface {
-                Some(s) if is_hard_surface(s) => true,
-                _ => false,
-            };
-            if !surface {
+            if !matches!(&rwy.surface, Some(s) if is_hard_surface(s)) {
                 continue;
             }
             let length: u32 = match &rwy.length_ft {
@@ -132,7 +128,12 @@ fn main() {
 
             airports.push((
                 apt.ident.clone(),
-                apt.name.replace('\\', "\\\\").replace('"', "\\\""),
+                apt.name
+                    .replace('\\', "\\\\")
+                    .replace('"', "\\\"")
+                    .chars()
+                    .filter(|c| !c.is_control() && *c != '\u{AD}')
+                    .collect::<String>(),
                 apt.latitude_deg,
                 apt.longitude_deg,
                 elevation,

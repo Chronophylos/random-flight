@@ -93,13 +93,7 @@ pub fn generate_flight_plan_with_rng(
         let arrival = candidates[rng.random_range(0..candidates.len())];
         let fp = calculate_flight_plan(departure, arrival, aircraft, opts.taxi_time);
 
-        let diff = if fp.block_time > target_block_time {
-            fp.block_time - target_block_time
-        } else {
-            target_block_time - fp.block_time
-        };
-
-        if diff <= opts.tolerance {
+        if fp.block_time.abs_diff(target_block_time) <= opts.tolerance {
             return Ok(fp);
         }
     }
