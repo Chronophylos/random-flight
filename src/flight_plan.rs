@@ -149,12 +149,7 @@ mod tests {
         let fp = calculate_flight_plan(dep, arr, ac, taxi());
 
         let sum = fp.climb_time + fp.cruise_time + fp.descent_time + fp.taxi_time;
-        let diff = if fp.block_time > sum {
-            fp.block_time - sum
-        } else {
-            sum - fp.block_time
-        };
-        assert!(diff.as_millis() < 10, "block_time should equal sum of phases");
+        assert!(fp.block_time.abs_diff(sum).as_millis() < 10, "block_time should equal sum of phases");
     }
 
     #[test]

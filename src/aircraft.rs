@@ -16,8 +16,7 @@ pub fn built_in_aircraft() -> &'static [Aircraft] {
 }
 
 pub fn aircraft_by_name(name: &str) -> Option<&'static Aircraft> {
-    let name_upper = name.to_uppercase();
-    BUILT_IN.iter().find(|a| a.name.to_uppercase() == name_upper)
+    BUILT_IN.iter().find(|a| a.name.eq_ignore_ascii_case(name))
 }
 
 static BUILT_IN: &[Aircraft] = &[

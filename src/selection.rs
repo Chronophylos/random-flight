@@ -62,29 +62,35 @@ pub fn generate_flight_plan_with_rng(
     let min_dist = (target_dist - dist_margin).max(1.0);
     let max_dist = target_dist + dist_margin;
 
-    let pinned_departure = opts.departure_icao.is_some();
+    // Resolve pinned departure once outside the loop
+    let pinned_dep = if opts.departure_icao.is_some() {
+        Some(pick_departure(&eligible, &opts, aircraft, rng)?)
+    } else {
+        None
+    };
+
+    let mut candidates: Vec<&'static Airport> = Vec::new();
 
     for _attempt in 0..opts.max_retries {
-        let departure = pick_departure(&eligible, &opts, aircraft, rng)?;
+        let departure = match pinned_dep {
+            Some(dep) => dep,
+            None => eligible[rng.random_range(0..eligible.len())],
+        };
 
-        let candidates: Vec<&'static Airport> = eligible
-            .iter()
-            .copied()
-            .filter(|a| {
-                if std::ptr::eq(*a, departure) {
-                    return false;
-                }
-                let d = haversine_distance_nm(
-                    departure.latitude, departure.longitude,
-                    a.latitude, a.longitude,
-                );
-                d >= min_dist && d <= max_dist && d <= aircraft.range_nm as f64
-            })
-            .collect();
+        candidates.clear();
+        candidates.extend(eligible.iter().copied().filter(|a| {
+            if std::ptr::eq(*a, departure) {
+                return false;
+            }
+            let d = haversine_distance_nm(
+                departure.latitude, departure.longitude,
+                a.latitude, a.longitude,
+            );
+            d >= min_dist && d <= max_dist && d <= aircraft.range_nm as f64
+        }));
 
         if candidates.is_empty() {
-            // If departure is pinned, retrying won't help — different error
-            if pinned_departure {
+            if pinned_dep.is_some() {
                 return Err(Error::NoCandidateArrivals);
             }
             continue;
@@ -110,17 +116,22 @@ fn pick_departure(
     if let Some(icao) = &opts.departure_icao {
         let apt = airport::find_by_icao(icao)
             .ok_or_else(|| Error::UnknownAirport { icao: icao.clone() })?;
-        if apt.runway_length_ft < aircraft.min_runway_length_ft {
-            return Err(Error::RunwayTooShort {
-                airport_icao: icao.clone(),
-                required_ft: aircraft.min_runway_length_ft,
-                available_ft: apt.runway_length_ft,
-            });
-        }
+        check_runway(apt, aircraft)?;
         Ok(apt)
     } else {
         Ok(eligible[rng.random_range(0..eligible.len())])
     }
+}
+
+fn check_runway(airport: &Airport, aircraft: &Aircraft) -> Result<(), Error> {
+    if airport.runway_length_ft < aircraft.min_runway_length_ft {
+        return Err(Error::RunwayTooShort {
+            airport_icao: airport.icao.to_string(),
+            required_ft: aircraft.min_runway_length_ft,
+            available_ft: airport.runway_length_ft,
+        });
+    }
+    Ok(())
 }
 
 fn plan_for_pair(
@@ -138,20 +149,8 @@ fn plan_for_pair(
     let arr = airport::find_by_icao(arr_icao)
         .ok_or_else(|| Error::UnknownAirport { icao: arr_icao.to_string() })?;
 
-    if dep.runway_length_ft < aircraft.min_runway_length_ft {
-        return Err(Error::RunwayTooShort {
-            airport_icao: dep_icao.to_string(),
-            required_ft: aircraft.min_runway_length_ft,
-            available_ft: dep.runway_length_ft,
-        });
-    }
-    if arr.runway_length_ft < aircraft.min_runway_length_ft {
-        return Err(Error::RunwayTooShort {
-            airport_icao: arr_icao.to_string(),
-            required_ft: aircraft.min_runway_length_ft,
-            available_ft: arr.runway_length_ft,
-        });
-    }
+    check_runway(dep, aircraft)?;
+    check_runway(arr, aircraft)?;
 
     let distance = haversine_distance_nm(
         dep.latitude, dep.longitude, arr.latitude, arr.longitude,
@@ -190,12 +189,7 @@ mod tests {
         let fp = generate_flight_plan_with_rng(ac, target, Some(opts), &mut rng)
             .expect("should find a flight");
 
-        let diff = if fp.block_time > target {
-            fp.block_time - target
-        } else {
-            target - fp.block_time
-        };
-        assert!(diff <= Duration::from_secs(15 * 60),
+        assert!(fp.block_time.abs_diff(target) <= Duration::from_secs(15 * 60),
             "block time {} min not within tolerance of target 120 min",
             fp.block_time.as_secs() / 60);
     }

@@ -51,10 +51,9 @@ fn try_download(url: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 }
 
 fn is_hard_surface(surface: &str) -> bool {
-    let s = surface.to_uppercase();
-    s.starts_with("ASP") || s.starts_with("CON") || s.starts_with("BIT")
-        || s.starts_with("PEM") || s == "ASPHALT" || s == "CONCRETE"
-        || s == "BITUMINOUS" || s.starts_with("ASPH") || s.starts_with("CONC")
+    const PREFIXES: &[&str] = &["ASP", "CON", "BIT", "PEM"];
+    let upper = surface.to_ascii_uppercase();
+    PREFIXES.iter().any(|p| upper.starts_with(p))
 }
 
 fn main() {

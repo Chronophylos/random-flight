@@ -15,8 +15,7 @@ pub fn all_airports() -> &'static [Airport] {
 }
 
 pub fn find_by_icao(icao: &str) -> Option<&'static Airport> {
-    let icao_upper = icao.to_uppercase();
-    AIRPORTS.iter().find(|a| a.icao == icao_upper)
+    AIRPORTS.iter().find(|a| a.icao.eq_ignore_ascii_case(icao))
 }
 
 pub fn filter_by_runway(min_length_ft: u32) -> Vec<&'static Airport> {
