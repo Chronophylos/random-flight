@@ -1,0 +1,183 @@
+use std::time::Duration;
+
+use crate::aircraft::Aircraft;
+use crate::airport::Airport;
+use crate::geo::haversine_distance_nm;
+
+#[derive(Debug, Clone)]
+pub struct FlightPlan {
+    pub departure: &'static Airport,
+    pub arrival: &'static Airport,
+    pub aircraft: Aircraft,
+    pub distance_nm: f64,
+    pub block_time: Duration,
+    pub taxi_time: Duration,
+    pub cruise_altitude_ft: u32,
+    pub climb_time: Duration,
+    pub climb_distance_nm: f64,
+    pub descent_time: Duration,
+    pub descent_distance_nm: f64,
+    pub cruise_time: Duration,
+    pub cruise_distance_nm: f64,
+}
+
+pub fn calculate_flight_plan(
+    departure: &'static Airport,
+    arrival: &'static Airport,
+    aircraft: &Aircraft,
+    taxi_time: Duration,
+) -> FlightPlan {
+    let distance_nm = haversine_distance_nm(
+        departure.latitude, departure.longitude,
+        arrival.latitude, arrival.longitude,
+    );
+
+    let cruise_speed = aircraft.cruise_speed_kts as f64;
+    let climb_speed = cruise_speed * aircraft.climb_speed_factor as f64;
+    let descent_speed = cruise_speed * aircraft.descent_speed_factor as f64;
+
+    let mut cruise_alt = aircraft.cruise_altitude_ft;
+    let min_alt = (departure.elevation_ft.max(arrival.elevation_ft) + 1000) as u32;
+
+    loop {
+        let climb_ft = cruise_alt.saturating_sub(departure.elevation_ft.max(0) as u32) as f64;
+        let descent_ft = cruise_alt.saturating_sub(arrival.elevation_ft.max(0) as u32) as f64;
+
+        let climb_time_hrs = climb_ft / aircraft.climb_rate_fpm as f64 / 60.0;
+        let descent_time_hrs = descent_ft / aircraft.descent_rate_fpm as f64 / 60.0;
+
+        let climb_dist = climb_speed * climb_time_hrs;
+        let descent_dist = descent_speed * descent_time_hrs;
+
+        if climb_dist + descent_dist < distance_nm || cruise_alt <= min_alt {
+            let cruise_dist = (distance_nm - climb_dist - descent_dist).max(0.0);
+            let cruise_time_hrs = cruise_dist / cruise_speed;
+
+            let to_duration = |hrs: f64| Duration::from_secs_f64(hrs * 3600.0);
+
+            let climb_time = to_duration(climb_time_hrs);
+            let descent_time = to_duration(descent_time_hrs);
+            let cruise_time = to_duration(cruise_time_hrs);
+            let block_time = climb_time + descent_time + cruise_time + taxi_time;
+
+            return FlightPlan {
+                departure,
+                arrival,
+                aircraft: aircraft.clone(),
+                distance_nm,
+                block_time,
+                taxi_time,
+                cruise_altitude_ft: cruise_alt,
+                climb_time,
+                climb_distance_nm: climb_dist,
+                descent_time,
+                descent_distance_nm: descent_dist,
+                cruise_time,
+                cruise_distance_nm: cruise_dist,
+            };
+        }
+
+        // Reduce altitude and retry
+        cruise_alt = cruise_alt.saturating_sub(1000).max(min_alt);
+    }
+}
+
+/// Estimate the cruise-only distance for a target block time.
+/// Used by the selection algorithm to narrow the airport search band.
+pub fn estimate_distance_for_block_time(
+    aircraft: &Aircraft,
+    target_block_time: Duration,
+    taxi_time: Duration,
+) -> f64 {
+    let flight_time_hrs = target_block_time
+        .saturating_sub(taxi_time)
+        .as_secs_f64() / 3600.0;
+    // Rough estimate: assume mostly cruise with some time lost to climb/descent
+    // Use 90% of cruise speed as effective speed to account for climb/descent phases
+    let effective_speed = aircraft.cruise_speed_kts as f64 * 0.90;
+    effective_speed * flight_time_hrs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::aircraft::aircraft_by_name;
+    use crate::airport::find_by_icao;
+
+    fn taxi() -> Duration {
+        Duration::from_secs(600) // 10 min
+    }
+
+    #[test]
+    fn basic_flight_plan_computes() {
+        let dep = find_by_icao("KJFK").expect("KJFK");
+        let arr = find_by_icao("KLAX").expect("KLAX");
+        let ac = aircraft_by_name("B738").expect("B738");
+
+        let fp = calculate_flight_plan(dep, arr, ac, taxi());
+
+        // JFK-LAX is ~2145 nm, B738 at 460 kts ~ 4.7h flight + taxi
+        assert!(fp.distance_nm > 2000.0 && fp.distance_nm < 2300.0,
+            "distance was {} nm", fp.distance_nm);
+        assert!(fp.block_time.as_secs() > 4 * 3600, "block time too short");
+        assert!(fp.block_time.as_secs() < 6 * 3600, "block time too long: {}s", fp.block_time.as_secs());
+        assert!(fp.cruise_distance_nm > 0.0);
+        assert!(fp.climb_time.as_secs() > 0);
+        assert!(fp.descent_time.as_secs() > 0);
+    }
+
+    #[test]
+    fn short_flight_reduces_altitude() {
+        let dep = find_by_icao("EDDF").expect("EDDF");
+        let arr = find_by_icao("EDDM").expect("EDDM");
+        let ac = aircraft_by_name("B738").expect("B738");
+
+        let fp = calculate_flight_plan(dep, arr, ac, taxi());
+
+        // ~152 nm, jet can't reach FL360 — altitude should be reduced
+        assert!(fp.cruise_altitude_ft < 36000,
+            "cruise alt should be reduced for short flight, was {}", fp.cruise_altitude_ft);
+        assert!(fp.cruise_distance_nm >= 0.0);
+    }
+
+    #[test]
+    fn block_time_equals_sum_of_phases() {
+        let dep = find_by_icao("KJFK").expect("KJFK");
+        let arr = find_by_icao("EGLL").expect("EGLL");
+        let ac = aircraft_by_name("B738").expect("B738");
+
+        let fp = calculate_flight_plan(dep, arr, ac, taxi());
+
+        let sum = fp.climb_time + fp.cruise_time + fp.descent_time + fp.taxi_time;
+        let diff = if fp.block_time > sum {
+            fp.block_time - sum
+        } else {
+            sum - fp.block_time
+        };
+        assert!(diff.as_millis() < 10, "block_time should equal sum of phases");
+    }
+
+    #[test]
+    fn c172_short_hop() {
+        let dep = find_by_icao("EDDF").expect("EDDF");
+        let arr = find_by_icao("EDDM").expect("EDDM");
+        let ac = aircraft_by_name("C172").expect("C172");
+
+        let fp = calculate_flight_plan(dep, arr, ac, taxi());
+
+        // ~152 nm at 122 kts ~ 1.25h + climb/descent + taxi ~ 1.5-2h
+        assert!(fp.block_time.as_secs() > 3600, "too short");
+        assert!(fp.block_time.as_secs() < 3 * 3600, "too long");
+    }
+
+    #[test]
+    fn estimate_distance_reasonable() {
+        let ac = aircraft_by_name("B738").expect("B738");
+        let target = Duration::from_secs(2 * 3600); // 2 hours
+
+        let est = estimate_distance_for_block_time(ac, target, taxi());
+
+        // B738 at ~414 kts effective * 1.83h ≈ 760 nm
+        assert!(est > 600.0 && est < 1000.0, "estimate was {est} nm");
+    }
+}
