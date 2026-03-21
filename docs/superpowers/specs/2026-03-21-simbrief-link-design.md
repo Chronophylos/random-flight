@@ -23,7 +23,7 @@ Cruise:      7h 06m (3175 nm)
 Descent:     19m (92 nm)
 Taxi:        10m
 
-SimBrief:    https://dispatch.simbrief.com/options/custom?orig=KJFK&dest=EDDF&type=B738&fl=360
+SimBrief:    https://dispatch.simbrief.com/options/custom?orig=KJFK&dest=EDDF&type=B738&fl=36000
 ```
 
 ## URL Format
@@ -37,7 +37,7 @@ Query parameters:
 | `orig` | `departure.icao` | `KJFK` |
 | `dest` | `arrival.icao` | `EDDF` |
 | `type` | `aircraft.icao_type` | `B738` |
-| `fl` | `cruise_altitude_ft / 100` | `360` |
+| `fl` | `cruise_altitude_ft` | `36000` |
 
 All values are ASCII alphanumeric ICAO codes or integers — no URL encoding is needed.
 
@@ -54,7 +54,7 @@ pub fn simbrief_url(&self) -> String {
         self.departure.icao,
         self.arrival.icao,
         self.aircraft.icao_type,
-        self.cruise_altitude_ft / 100,
+        self.cruise_altitude_ft,
     )
 }
 ```
