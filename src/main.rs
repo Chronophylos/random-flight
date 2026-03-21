@@ -192,6 +192,8 @@ fn generate(args: GenerateArgs) {
             println!("Cruise:      {} ({:.0} nm)", format_duration(fp.cruise_time), fp.cruise_distance_nm);
             println!("Descent:     {} ({:.0} nm)", format_duration(fp.descent_time), fp.descent_distance_nm);
             println!("Taxi:        {}", format_duration(fp.taxi_time));
+            println!();
+            println!("SimBrief:    {}", fp.simbrief_url());
         }
         Err(e) => {
             eprintln!("Error: {e}");
