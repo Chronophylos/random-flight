@@ -25,8 +25,8 @@ const STYLES: Styles = Styles::styled()
     subcommand_required = true,
     styles = STYLES,
     after_help = "Examples:\n  \
-        random-flight generate --aircraft B738 --time 4h\n  \
-        random-flight generate --aircraft C172 --time 1h30m --departure KJFK\n  \
+        random-flight generate B738 4h\n  \
+        random-flight generate C172 1h30m --departure KJFK\n  \
         random-flight aircraft list",
 )]
 struct Cli {
@@ -39,9 +39,9 @@ enum Commands {
     /// Generate a random flight plan
     #[command(
         after_help = "Examples:\n  \
-            random-flight generate --aircraft B738 --time 4h\n  \
-            random-flight generate --aircraft C172 --time 1h30m --departure KJFK\n  \
-            random-flight generate --profile custom.toml --time 3h"
+            random-flight generate B738 4h\n  \
+            random-flight generate C172 1h30m --departure KJFK\n  \
+            random-flight generate --profile custom.toml 3h"
     )]
     Generate(GenerateArgs),
     /// Aircraft presets and import tools
@@ -59,8 +59,7 @@ enum AircraftCommands {
 
 #[derive(Parser)]
 struct ImportArgs {
-    /// Source format
-    #[arg(long)]
+    /// Source format (e.g. lnmperf)
     format: String,
 
     /// Input file path
@@ -74,16 +73,14 @@ struct ImportArgs {
 #[derive(Parser)]
 struct GenerateArgs {
     /// Aircraft preset name (e.g. C172, B738, A320)
-    #[arg(long)]
     aircraft: Option<String>,
 
-    /// Path to custom aircraft TOML profile
-    #[arg(long, conflicts_with = "aircraft")]
-    profile: Option<String>,
-
     /// Target block time (e.g. 2h, 2h30m, 90m)
+    time: Option<String>,
+
+    /// Path to custom aircraft TOML profile (use instead of aircraft name)
     #[arg(long)]
-    time: String,
+    profile: Option<String>,
 
     /// Tolerance around target time
     #[arg(long, default_value = "15m")]
@@ -165,9 +162,18 @@ fn import_aircraft(args: ImportArgs) {
     }
 }
 
-fn generate(args: GenerateArgs) {
+fn generate(mut args: GenerateArgs) {
+    // When --profile is used, the first positional (aircraft) is actually the time.
+    if args.profile.is_some() && args.aircraft.is_some() && args.time.is_none() {
+        args.time = args.aircraft.take();
+    }
+
     let aircraft = resolve_aircraft(&args);
-    let target = parse_duration(&args.time);
+    let time_str = args.time.unwrap_or_else(|| {
+        eprintln!("Error: <TIME> argument is required (e.g. 2h, 2h30m, 90m)");
+        process::exit(1);
+    });
+    let target = parse_duration(&time_str);
     let tolerance = parse_duration(&args.tolerance);
 
     let opts = FlightPlanOptions {
@@ -203,6 +209,11 @@ fn generate(args: GenerateArgs) {
 }
 
 fn resolve_aircraft(args: &GenerateArgs) -> Aircraft {
+    if args.profile.is_some() && args.aircraft.is_some() {
+        eprintln!("Error: cannot use both <AIRCRAFT> and --profile");
+        process::exit(1);
+    }
+
     if let Some(ref path) = args.profile {
         match load_profile(std::path::Path::new(path)) {
             Ok(ac) => ac,
@@ -220,7 +231,7 @@ fn resolve_aircraft(args: &GenerateArgs) -> Aircraft {
             }
         }
     } else {
-        eprintln!("Error: either --aircraft or --profile is required");
+        eprintln!("Error: either <AIRCRAFT> or --profile is required");
         process::exit(1);
     }
 }

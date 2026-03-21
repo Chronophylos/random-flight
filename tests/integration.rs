@@ -74,7 +74,7 @@ fn deterministic_with_same_seed() {
 fn cli_generate_produces_flight_plan() {
     let bin = env!("CARGO_BIN_EXE_random-flight");
     let output = std::process::Command::new(bin)
-        .args(["generate", "--aircraft", "C172", "--time", "1h"])
+        .args(["generate", "C172", "1h"])
         .output()
         .expect("failed to run binary");
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -104,7 +104,7 @@ fn cli_aircraft_lists_presets() {
 fn cli_generate_with_profile() {
     let bin = env!("CARGO_BIN_EXE_random-flight");
     let output = std::process::Command::new(bin)
-        .args(["generate", "--profile", "data/aircraft/b738.toml", "--time", "4h"])
+        .args(["generate", "--profile", "data/aircraft/b738.toml", "4h"])
         .output()
         .expect("failed to run binary");
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -119,7 +119,7 @@ fn cli_generate_with_profile() {
 fn cli_aircraft_import_lnmperf() {
     let bin = env!("CARGO_BIN_EXE_random-flight");
     let output = std::process::Command::new(bin)
-        .args(["aircraft", "import", "--format", "lnmperf",
+        .args(["aircraft", "import", "lnmperf",
                "tests/fixtures/sample.lnmperf", "--output", "/tmp/claude-1000/"])
         .output()
         .expect("failed to run binary");

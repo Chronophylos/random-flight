@@ -15,10 +15,10 @@ cargo test --lib         # Unit tests only
 cargo test --test integration  # Integration tests only
 cargo test <test_name>   # Run a single test by name
 cargo clippy             # Lint
-cargo run -- generate --aircraft B738 --time 4h   # Example run with built-in preset
-cargo run -- generate --profile custom.toml --time 3h  # Run with custom TOML profile
+cargo run -- generate B738 4h                     # Example run with built-in preset
+cargo run -- generate --profile custom.toml 3h    # Run with custom TOML profile
 cargo run -- aircraft list                         # List aircraft presets
-cargo run -- aircraft import --format lnmperf input.lnmperf  # Import LNM performance file
+cargo run -- aircraft import lnmperf input.lnmperf  # Import LNM performance file
 ```
 
 ## Architecture
