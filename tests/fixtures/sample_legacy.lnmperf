@@ -1,0 +1,19 @@
+[Options]
+Name=Cessna 152
+AircraftType=C152
+FuelAsVolume=true
+JetFuel=false
+
+[Perf]
+UsableFuel=26
+TaxiFuelLbsGal=0.13
+ClimbVertSpeedFtPerMin=849
+ClimbSpeedKtsTAS=63
+ClimbFuelFlowLbsGalPerHour=7.0
+CruiseSpeedKtsTAS=103
+CruiseFuelFlowLbsGalPerHour=6.0
+DescentSpeedKtsTAS=84
+DescentVertSpeedFtPerMin=591
+DescentFuelFlowLbsGalPerHour=3.0
+MinRunwayLength=725
+RunwayType=Soft

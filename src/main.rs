@@ -6,7 +6,7 @@ use clap::builder::styling::{AnsiColor, Effects, Styles};
 
 use random_flight::{
     Aircraft, FlightPlanOptions, aircraft_by_icao_type, built_in_aircraft,
-    generate_flight_plan, load_profile,
+    generate_flight_plan, import_lnmperf, load_profile,
 };
 
 const STYLES: Styles = Styles::styled()
@@ -133,8 +133,46 @@ fn list_aircraft() {
 }
 
 fn import_aircraft(args: ImportArgs) {
-    eprintln!("Error: import not yet implemented (format: {})", args.format);
-    process::exit(1);
+    match args.format.as_str() {
+        "lnmperf" => {}
+        other => {
+            eprintln!("Error: unsupported format '{other}'. Supported: lnmperf");
+            process::exit(1);
+        }
+    }
+
+    let path = std::path::Path::new(&args.input);
+    let result = match import_lnmperf(path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            process::exit(1);
+        }
+    };
+
+    // Extract icao_type from generated TOML to determine filename
+    let icao_type = result
+        .toml_content
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("icao_type = \"")
+                .and_then(|s| s.strip_suffix('"'))
+        })
+        .unwrap_or("unknown");
+
+    let output_dir = std::path::Path::new(&args.output);
+    let output_path = output_dir.join(format!("{}.toml", icao_type.to_lowercase()));
+
+    if let Err(e) = std::fs::write(&output_path, &result.toml_content) {
+        eprintln!("Error writing {}: {e}", output_path.display());
+        process::exit(1);
+    }
+
+    println!("Wrote {}", output_path.display());
+
+    for warning in &result.warnings {
+        println!("  warning: {warning}");
+    }
 }
 
 fn generate(args: GenerateArgs) {
