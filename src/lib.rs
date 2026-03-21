@@ -5,8 +5,7 @@ pub mod flight_plan;
 pub mod geo;
 pub mod selection;
 
-#[allow(deprecated)]
-pub use aircraft::{Aircraft, FuelType, aircraft_by_icao_type, aircraft_by_name, built_in_aircraft};
+pub use aircraft::{Aircraft, FuelType, aircraft_by_icao_type, built_in_aircraft};
 pub use airport::Airport;
 pub use error::Error;
 pub use flight_plan::{FlightPlan, calculate_flight_plan, estimate_distance_for_block_time};
