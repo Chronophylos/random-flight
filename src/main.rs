@@ -5,8 +5,8 @@ use clap::{Parser, Subcommand};
 use clap::builder::styling::{AnsiColor, Effects, Styles};
 
 use random_flight::{
-    Aircraft, FlightPlanOptions, aircraft_by_name, built_in_aircraft,
-    generate_flight_plan,
+    Aircraft, FlightPlanOptions, aircraft_by_icao_type, built_in_aircraft,
+    generate_flight_plan, import_lnmperf, load_profile,
 };
 
 const STYLES: Styles = Styles::styled()
@@ -27,7 +27,7 @@ const STYLES: Styles = Styles::styled()
     after_help = "Examples:\n  \
         random-flight generate --aircraft B738 --time 4h\n  \
         random-flight generate --aircraft C172 --time 1h30m --departure KJFK\n  \
-        random-flight aircraft",
+        random-flight aircraft list",
 )]
 struct Cli {
     #[command(subcommand)]
@@ -41,19 +41,45 @@ enum Commands {
         after_help = "Examples:\n  \
             random-flight generate --aircraft B738 --time 4h\n  \
             random-flight generate --aircraft C172 --time 1h30m --departure KJFK\n  \
-            random-flight generate --aircraft custom --cruise-speed 450 --cruise-alt 35000 \
-            --climb-rate 2000 --descent-rate 1800 --range 3000 --min-runway 6000 --time 3h"
+            random-flight generate --profile custom.toml --time 3h"
     )]
     Generate(GenerateArgs),
+    /// Aircraft presets and import tools
+    #[command(subcommand)]
+    Aircraft(AircraftCommands),
+}
+
+#[derive(Subcommand)]
+enum AircraftCommands {
     /// List available aircraft presets
-    Aircraft,
+    List,
+    /// Import aircraft performance from external format
+    Import(ImportArgs),
+}
+
+#[derive(Parser)]
+struct ImportArgs {
+    /// Source format
+    #[arg(long)]
+    format: String,
+
+    /// Input file path
+    input: String,
+
+    /// Output directory
+    #[arg(long, default_value = ".")]
+    output: String,
 }
 
 #[derive(Parser)]
 struct GenerateArgs {
-    /// Aircraft preset name (e.g. C172, B738, A320) or "custom"
+    /// Aircraft preset name (e.g. C172, B738, A320)
     #[arg(long)]
-    aircraft: String,
+    aircraft: Option<String>,
+
+    /// Path to custom aircraft TOML profile
+    #[arg(long, conflicts_with = "aircraft")]
+    profile: Option<String>,
 
     /// Target block time (e.g. 2h, 2h30m, 90m)
     #[arg(long)]
@@ -70,30 +96,6 @@ struct GenerateArgs {
     /// Pin arrival airport (ICAO code)
     #[arg(long)]
     arrival: Option<String>,
-
-    /// Cruise speed in knots
-    #[arg(long, help_heading = "Custom Aircraft")]
-    cruise_speed: Option<u16>,
-
-    /// Cruise altitude in feet
-    #[arg(long, help_heading = "Custom Aircraft")]
-    cruise_alt: Option<u32>,
-
-    /// Climb rate in ft/min
-    #[arg(long, help_heading = "Custom Aircraft")]
-    climb_rate: Option<u16>,
-
-    /// Descent rate in ft/min
-    #[arg(long, help_heading = "Custom Aircraft")]
-    descent_rate: Option<u16>,
-
-    /// Range in nautical miles
-    #[arg(long, help_heading = "Custom Aircraft")]
-    range: Option<u32>,
-
-    /// Minimum runway length in feet
-    #[arg(long, help_heading = "Custom Aircraft")]
-    min_runway: Option<u32>,
 }
 
 fn main() {
@@ -109,21 +111,57 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Aircraft => list_aircraft(),
+        Commands::Aircraft(sub) => match sub {
+            AircraftCommands::List => list_aircraft(),
+            AircraftCommands::Import(args) => import_aircraft(args),
+        },
         Commands::Generate(args) => generate(args),
     }
 }
 
 fn list_aircraft() {
     println!("Available aircraft presets:\n");
-    println!("  {:<6} {:>5}  {:>7}  {:>8}  {:>10}",
-        "NAME", "SPD", "ALT", "RANGE", "MIN RWY");
-    println!("  {:<6} {:>5}  {:>7}  {:>8}  {:>10}",
-        "----", "---", "---", "-----", "-------");
+    println!("  {:<6} {:<22} {:>5}  {:>7}  {:>8}  {:>10}",
+        "ICAO", "NAME", "SPD", "ALT", "RANGE", "MIN RWY");
+    println!("  {:<6} {:<22} {:>5}  {:>7}  {:>8}  {:>10}",
+        "----", "----", "---", "---", "-----", "-------");
     for a in built_in_aircraft() {
-        println!("  {:<6} {:>3} kt  FL{:03}    {:>5} nm  {:>6} ft",
-            a.name, a.cruise_speed_kts, a.cruise_altitude_ft / 100,
-            a.range_nm, a.min_runway_length_ft);
+        println!("  {:<6} {:<22} {:>3} kt  FL{:03}    {:>5.0} nm  {:>6} ft",
+            a.icao_type, a.name, a.cruise_speed_ktas, a.cruise_altitude_ft / 100,
+            a.range_nm(), a.min_runway_length_ft);
+    }
+}
+
+fn import_aircraft(args: ImportArgs) {
+    match args.format.as_str() {
+        "lnmperf" => {}
+        other => {
+            eprintln!("Error: unsupported format '{other}'. Supported: lnmperf");
+            process::exit(1);
+        }
+    }
+
+    let path = std::path::Path::new(&args.input);
+    let result = match import_lnmperf(path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            process::exit(1);
+        }
+    };
+
+    let output_dir = std::path::Path::new(&args.output);
+    let output_path = output_dir.join(format!("{}.toml", result.icao_type.to_lowercase()));
+
+    if let Err(e) = std::fs::write(&output_path, &result.toml_content) {
+        eprintln!("Error writing {}: {e}", output_path.display());
+        process::exit(1);
+    }
+
+    println!("Wrote {}", output_path.display());
+
+    for warning in &result.warnings {
+        println!("  warning: {warning}");
     }
 }
 
@@ -143,7 +181,7 @@ fn generate(args: GenerateArgs) {
         Ok(fp) => {
             println!("Flight Plan");
             println!("===========");
-            println!("Aircraft:    {}", fp.aircraft.name);
+            println!("Aircraft:    {} ({})", fp.aircraft.icao_type, fp.aircraft.name);
             println!("Departure:   {} ({})", fp.departure.icao, fp.departure.name);
             println!("Arrival:     {} ({})", fp.arrival.icao, fp.arrival.name);
             println!("Distance:    {:.0} nm", fp.distance_nm);
@@ -163,30 +201,25 @@ fn generate(args: GenerateArgs) {
 }
 
 fn resolve_aircraft(args: &GenerateArgs) -> Aircraft {
-    if args.aircraft.eq_ignore_ascii_case("custom") {
-        let missing = |field: &str| -> ! {
-            eprintln!("Error: --{field} is required for custom aircraft");
-            process::exit(1);
-        };
-        Aircraft {
-            name: "Custom",
-            cruise_speed_kts: args.cruise_speed.unwrap_or_else(|| missing("cruise-speed")),
-            cruise_altitude_ft: args.cruise_alt.unwrap_or_else(|| missing("cruise-alt")),
-            climb_rate_fpm: args.climb_rate.unwrap_or_else(|| missing("climb-rate")),
-            descent_rate_fpm: args.descent_rate.unwrap_or_else(|| missing("descent-rate")),
-            climb_speed_factor: 0.75,
-            descent_speed_factor: 0.65,
-            range_nm: args.range.unwrap_or_else(|| missing("range")),
-            min_runway_length_ft: args.min_runway.unwrap_or_else(|| missing("min-runway")),
-        }
-    } else {
-        match aircraft_by_name(&args.aircraft) {
-            Some(a) => a.clone(),
-            None => {
-                eprintln!("Error: unknown aircraft '{}'. Run `random-flight aircraft` to see presets.", args.aircraft);
+    if let Some(ref path) = args.profile {
+        match load_profile(std::path::Path::new(path)) {
+            Ok(ac) => ac,
+            Err(e) => {
+                eprintln!("Error loading profile: {e}");
                 process::exit(1);
             }
         }
+    } else if let Some(ref name) = args.aircraft {
+        match aircraft_by_icao_type(name) {
+            Some(a) => a.clone(),
+            None => {
+                eprintln!("Error: unknown aircraft '{name}'. Run `random-flight aircraft list` to see presets.");
+                process::exit(1);
+            }
+        }
+    } else {
+        eprintln!("Error: either --aircraft or --profile is required");
+        process::exit(1);
     }
 }
 

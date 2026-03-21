@@ -32,9 +32,9 @@ pub fn calculate_flight_plan(
         arrival.latitude, arrival.longitude,
     );
 
-    let cruise_speed = aircraft.cruise_speed_kts as f64;
-    let climb_speed = cruise_speed * aircraft.climb_speed_factor as f64;
-    let descent_speed = cruise_speed * aircraft.descent_speed_factor as f64;
+    let cruise_speed = aircraft.cruise_speed_ktas as f64;
+    let climb_speed = aircraft.climb_speed_ktas as f64;
+    let descent_speed = aircraft.descent_speed_ktas as f64;
 
     let mut cruise_alt = aircraft.cruise_altitude_ft;
     let min_alt = (departure.elevation_ft.max(arrival.elevation_ft) + 1000).max(0) as u32;
@@ -94,14 +94,14 @@ pub fn estimate_distance_for_block_time(
         .as_secs_f64() / 3600.0;
     // Rough estimate: assume mostly cruise with some time lost to climb/descent
     // Use 90% of cruise speed as effective speed to account for climb/descent phases
-    let effective_speed = aircraft.cruise_speed_kts as f64 * 0.90;
+    let effective_speed = aircraft.cruise_speed_ktas as f64 * 0.90;
     effective_speed * flight_time_hrs
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aircraft::aircraft_by_name;
+    use crate::aircraft::aircraft_by_icao_type;
     use crate::airport::find_by_icao;
 
     fn taxi() -> Duration {
@@ -112,7 +112,7 @@ mod tests {
     fn basic_flight_plan_computes() {
         let dep = find_by_icao("KJFK").expect("KJFK");
         let arr = find_by_icao("KLAX").expect("KLAX");
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
 
         let fp = calculate_flight_plan(dep, arr, ac, taxi());
 
@@ -130,7 +130,7 @@ mod tests {
     fn short_flight_reduces_altitude() {
         let dep = find_by_icao("EDDF").expect("EDDF");
         let arr = find_by_icao("EDDM").expect("EDDM");
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
 
         let fp = calculate_flight_plan(dep, arr, ac, taxi());
 
@@ -144,7 +144,7 @@ mod tests {
     fn block_time_equals_sum_of_phases() {
         let dep = find_by_icao("KJFK").expect("KJFK");
         let arr = find_by_icao("EGLL").expect("EGLL");
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
 
         let fp = calculate_flight_plan(dep, arr, ac, taxi());
 
@@ -156,7 +156,7 @@ mod tests {
     fn c172_short_hop() {
         let dep = find_by_icao("EDDF").expect("EDDF");
         let arr = find_by_icao("EDDM").expect("EDDM");
-        let ac = aircraft_by_name("C172").expect("C172");
+        let ac = aircraft_by_icao_type("C172").expect("C172");
 
         let fp = calculate_flight_plan(dep, arr, ac, taxi());
 
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn estimate_distance_reasonable() {
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
         let target = Duration::from_secs(2 * 3600); // 2 hours
 
         let est = estimate_distance_for_block_time(ac, target, taxi());

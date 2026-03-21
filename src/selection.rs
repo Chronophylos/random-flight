@@ -57,7 +57,7 @@ pub fn generate_flight_plan_with_rng(
 
     let target_dist = estimate_distance_for_block_time(aircraft, target_block_time, opts.taxi_time);
     let tolerance_hrs = opts.tolerance.as_secs_f64() / 3600.0;
-    let dist_margin = aircraft.cruise_speed_kts as f64 * tolerance_hrs;
+    let dist_margin = aircraft.cruise_speed_ktas as f64 * tolerance_hrs;
 
     let min_dist = (target_dist - dist_margin).max(1.0);
     let max_dist = target_dist + dist_margin;
@@ -86,7 +86,7 @@ pub fn generate_flight_plan_with_rng(
                 departure.latitude, departure.longitude,
                 a.latitude, a.longitude,
             );
-            d >= min_dist && d <= max_dist && d <= aircraft.range_nm as f64
+            d >= min_dist && d <= max_dist && d <= aircraft.range_nm()
         }));
 
         if candidates.is_empty() {
@@ -155,10 +155,10 @@ fn plan_for_pair(
     let distance = haversine_distance_nm(
         dep.latitude, dep.longitude, arr.latitude, arr.longitude,
     );
-    if distance > aircraft.range_nm as f64 {
+    if distance > aircraft.range_nm() {
         return Err(Error::RangeExceeded {
             distance_nm: distance,
-            range_nm: aircraft.range_nm,
+            range_nm: aircraft.range_nm(),
         });
     }
 
@@ -168,7 +168,7 @@ fn plan_for_pair(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aircraft::aircraft_by_name;
+    use crate::aircraft::aircraft_by_icao_type;
     use rand::SeedableRng;
     use rand::rngs::SmallRng;
 
@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn generates_plan_within_tolerance() {
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
         let target = Duration::from_secs(2 * 3600);
         let opts = FlightPlanOptions {
             tolerance: Duration::from_secs(15 * 60),
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn pinned_both_airports() {
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
         let target = Duration::from_secs(5 * 3600); // doesn't matter for pinned
         let opts = FlightPlanOptions {
             departure_icao: Some("KJFK".into()),
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn unknown_airport_error() {
-        let ac = aircraft_by_name("C172").expect("C172");
+        let ac = aircraft_by_icao_type("C172").expect("C172");
         let opts = FlightPlanOptions {
             departure_icao: Some("ZZZZ".into()),
             arrival_icao: Some("KJFK".into()),
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     fn range_exceeded_error() {
-        let ac = aircraft_by_name("C172").expect("C172"); // 640 nm range
+        let ac = aircraft_by_icao_type("C172").expect("C172"); // 640 nm range
         let opts = FlightPlanOptions {
             departure_icao: Some("KJFK".into()),
             arrival_icao: Some("EGLL".into()), // ~2999 nm
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn pinned_departure_random_arrival() {
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
         let target = Duration::from_secs(2 * 3600);
         let opts = FlightPlanOptions {
             departure_icao: Some("EDDF".into()),
@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn same_departure_and_arrival_rejected() {
-        let ac = aircraft_by_name("B738").expect("B738");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
         let opts = FlightPlanOptions {
             departure_icao: Some("KJFK".into()),
             arrival_icao: Some("KJFK".into()),
