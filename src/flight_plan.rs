@@ -21,6 +21,19 @@ pub struct FlightPlan {
     pub cruise_distance_nm: f64,
 }
 
+impl FlightPlan {
+    /// Build a SimBrief dispatch URL pre-filled with this flight plan's parameters.
+    pub fn simbrief_url(&self) -> String {
+        format!(
+            "https://dispatch.simbrief.com/options/custom?orig={}&dest={}&type={}&fl={}",
+            self.departure.icao,
+            self.arrival.icao,
+            self.aircraft.icao_type,
+            self.cruise_altitude_ft,
+        )
+    }
+}
+
 pub fn calculate_flight_plan(
     departure: &'static Airport,
     arrival: &'static Airport,
@@ -174,5 +187,23 @@ mod tests {
 
         // B738 at ~414 kts effective * 1.83h ≈ 760 nm
         assert!(est > 600.0 && est < 1000.0, "estimate was {est} nm");
+    }
+
+    #[test]
+    fn simbrief_url_contains_correct_parameters() {
+        let dep = find_by_icao("KJFK").expect("KJFK");
+        let arr = find_by_icao("KLAX").expect("KLAX");
+        let ac = aircraft_by_icao_type("B738").expect("B738");
+
+        let fp = calculate_flight_plan(dep, arr, ac, taxi());
+        let url = fp.simbrief_url();
+
+        assert!(url.starts_with("https://dispatch.simbrief.com/options/custom?"),
+            "unexpected base URL: {url}");
+        assert!(url.contains("orig=KJFK"), "missing orig: {url}");
+        assert!(url.contains("dest=KLAX"), "missing dest: {url}");
+        assert!(url.contains("type=B738"), "missing type: {url}");
+        assert!(url.contains(&format!("fl={}", fp.cruise_altitude_ft)),
+            "missing or wrong fl: {url}");
     }
 }
