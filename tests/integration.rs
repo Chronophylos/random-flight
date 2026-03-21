@@ -82,6 +82,9 @@ fn cli_generate_produces_flight_plan() {
     assert!(stdout.contains("Flight Plan"), "expected flight plan output, got: {stdout}");
     assert!(stdout.contains("Departure:"));
     assert!(stdout.contains("Arrival:"));
+    assert!(stdout.contains("SimBrief:    https://dispatch.simbrief.com/options/custom?"),
+        "expected SimBrief URL in output, got: {stdout}");
+    assert!(stdout.contains("type=C172"), "expected type=C172 in SimBrief URL, got: {stdout}");
 }
 
 #[test]
@@ -108,6 +111,8 @@ fn cli_generate_with_profile() {
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     assert!(stdout.contains("B738"), "expected B738 in output, got: {stdout}");
     assert!(stdout.contains("Flight Plan"), "expected flight plan output");
+    assert!(stdout.contains("SimBrief:    https://dispatch.simbrief.com/options/custom?"),
+        "expected SimBrief URL in profile output, got: {stdout}");
 }
 
 #[test]
