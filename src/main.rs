@@ -6,7 +6,7 @@ use clap::builder::styling::{AnsiColor, Effects, Styles};
 
 use random_flight::{
     Aircraft, FlightPlanOptions, aircraft_by_icao_type, built_in_aircraft,
-    generate_flight_plan,
+    generate_flight_plan, load_profile,
 };
 
 const STYLES: Styles = Styles::styled()
@@ -174,10 +174,13 @@ fn generate(args: GenerateArgs) {
 
 fn resolve_aircraft(args: &GenerateArgs) -> Aircraft {
     if let Some(ref path) = args.profile {
-        // Runtime profile loading — implemented in Task 4
-        let _ = path;
-        eprintln!("Error: --profile not yet implemented");
-        process::exit(1);
+        match load_profile(std::path::Path::new(path)) {
+            Ok(ac) => ac,
+            Err(e) => {
+                eprintln!("Error loading profile: {e}");
+                process::exit(1);
+            }
+        }
     } else if let Some(ref name) = args.aircraft {
         match aircraft_by_icao_type(name) {
             Some(a) => a.clone(),

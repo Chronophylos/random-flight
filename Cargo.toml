@@ -8,7 +8,9 @@ rust-version = "1.85"
 clap = { version = "4", features = ["derive"] }
 humantime = "2"
 rand = "0.9"
+serde = { version = "1", features = ["derive"] }
 thiserror = "2"
+toml = "0.8"
 
 [build-dependencies]
 csv = "1"
