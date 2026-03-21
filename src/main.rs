@@ -150,18 +150,8 @@ fn import_aircraft(args: ImportArgs) {
         }
     };
 
-    // Extract icao_type from generated TOML to determine filename
-    let icao_type = result
-        .toml_content
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix("icao_type = \"")
-                .and_then(|s| s.strip_suffix('"'))
-        })
-        .unwrap_or("unknown");
-
     let output_dir = std::path::Path::new(&args.output);
-    let output_path = output_dir.join(format!("{}.toml", icao_type.to_lowercase()));
+    let output_path = output_dir.join(format!("{}.toml", result.icao_type.to_lowercase()));
 
     if let Err(e) = std::fs::write(&output_path, &result.toml_content) {
         eprintln!("Error writing {}: {e}", output_path.display());

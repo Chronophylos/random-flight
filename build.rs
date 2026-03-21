@@ -251,6 +251,11 @@ fn generate_aircraft_db(out_dir: &Path, manifest_dir: &Path) {
             "Duplicate icao_type: {}",
             parsed.aircraft.icao_type
         );
+        assert!(
+            parsed.aircraft.icao_type.chars().all(|c| c.is_ascii_alphanumeric()),
+            "{}: icao_type must be ASCII alphanumeric, got {:?}",
+            filename_stem, parsed.aircraft.icao_type
+        );
         seen_icao.insert(parsed.aircraft.icao_type.clone());
 
         assert!(

@@ -98,6 +98,32 @@ fn cli_aircraft_lists_presets() {
 }
 
 #[test]
+fn cli_generate_with_profile() {
+    let bin = env!("CARGO_BIN_EXE_random-flight");
+    let output = std::process::Command::new(bin)
+        .args(["generate", "--profile", "data/aircraft/b738.toml", "--time", "4h"])
+        .output()
+        .expect("failed to run binary");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("B738"), "expected B738 in output, got: {stdout}");
+    assert!(stdout.contains("Flight Plan"), "expected flight plan output");
+}
+
+#[test]
+fn cli_aircraft_import_lnmperf() {
+    let bin = env!("CARGO_BIN_EXE_random-flight");
+    let output = std::process::Command::new(bin)
+        .args(["aircraft", "import", "--format", "lnmperf",
+               "tests/fixtures/sample.lnmperf", "--output", "/tmp/claude-1000/"])
+        .output()
+        .expect("failed to run binary");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("b737.toml"), "expected output filename in output, got: {stdout}");
+}
+
+#[test]
 fn cli_no_subcommand_shows_help() {
     let bin = env!("CARGO_BIN_EXE_random-flight");
     let output = std::process::Command::new(bin)

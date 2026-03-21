@@ -8,6 +8,7 @@ use super::{gal_to_kg, lbs_to_kg};
 /// Result of importing an LNM performance file.
 #[derive(Debug)]
 pub struct LnmImportResult {
+    pub icao_type: String,
     pub toml_content: String,
     pub warnings: Vec<String>,
 }
@@ -276,6 +277,7 @@ descent_kg_per_hour = {descent_fuel_kg:.1}
     );
 
     Ok(LnmImportResult {
+        icao_type: aircraft_type,
         toml_content,
         warnings,
     })
@@ -319,7 +321,7 @@ mod tests {
         );
         // 26 gal * 2.7216 = ~70.76 kg
         assert!(
-            result.toml_content.contains("70"),
+            result.toml_content.contains("capacity_kg = 70."),
             "should contain capacity ~70 kg, got:\n{}",
             result.toml_content
         );

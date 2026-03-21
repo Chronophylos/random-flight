@@ -9,7 +9,7 @@ clap = { version = "4", features = ["derive"] }
 humantime = "2"
 rand = "0.9"
 serde = { version = "1", features = ["derive"] }
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = "0.37"
 thiserror = "2"
 toml = "0.8"
 
