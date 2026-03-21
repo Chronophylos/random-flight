@@ -290,8 +290,16 @@ fn generate_aircraft_db(out_dir: &Path, manifest_dir: &Path) {
             "avgas" => "Avgas",
             _ => unreachable!(),
         };
+        let escaped_name = ac
+            .aircraft
+            .name
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .chars()
+            .filter(|c| !c.is_control())
+            .collect::<String>();
         writeln!(f, "    Aircraft {{").unwrap();
-        writeln!(f, "        name: \"{}\",", ac.aircraft.name).unwrap();
+        writeln!(f, "        name: \"{escaped_name}\",").unwrap();
         writeln!(f, "        icao_type: \"{}\",", ac.aircraft.icao_type).unwrap();
         writeln!(f, "        cruise_speed_ktas: {},", ac.performance.cruise_speed_ktas).unwrap();
         writeln!(f, "        cruise_altitude_ft: {},", ac.performance.cruise_altitude_ft).unwrap();

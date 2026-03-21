@@ -195,18 +195,28 @@ fn build_toml(raw: RawPerf) -> Result<LnmImportResult, String> {
         }
     };
 
-    let capacity_kg = raw.usable_fuel.map(convert_fuel).unwrap_or(0.0);
+    let warn_missing = |field: &str, warnings: &mut Vec<String>| {
+        warnings.push(format!("{field} missing from source file; defaulting to 0"));
+    };
+
+    let capacity_kg = raw.usable_fuel.map(convert_fuel).unwrap_or_else(|| {
+        warn_missing("usable fuel", &mut warnings);
+        0.0
+    });
 
     let climb_fuel_kg = raw.climb_fuel_flow.map(convert_fuel).unwrap_or(0.0);
     let cruise_fuel_kg = raw.cruise_fuel_flow.map(convert_fuel).unwrap_or(0.0);
     let descent_fuel_kg = raw.descent_fuel_flow.map(convert_fuel).unwrap_or(0.0);
 
-    let cruise_speed = raw.cruise_speed.unwrap_or(0.0) as u16;
-    let climb_speed = raw.climb_speed.unwrap_or(0.0) as u16;
-    let climb_rate = raw.climb_rate.unwrap_or(0.0) as u16;
-    let descent_speed = raw.descent_speed.unwrap_or(0.0) as u16;
-    let descent_rate = raw.descent_rate.unwrap_or(0.0) as u16;
-    let min_runway = raw.min_runway_length.unwrap_or(0.0) as u32;
+    let cruise_speed = raw.cruise_speed.unwrap_or_else(|| {
+        warn_missing("cruise speed", &mut warnings);
+        0.0
+    }).round() as u16;
+    let climb_speed = raw.climb_speed.unwrap_or(0.0).round() as u16;
+    let climb_rate = raw.climb_rate.unwrap_or(0.0).round() as u16;
+    let descent_speed = raw.descent_speed.unwrap_or(0.0).round() as u16;
+    let descent_rate = raw.descent_rate.unwrap_or(0.0).round() as u16;
+    let min_runway = raw.min_runway_length.unwrap_or(0.0).round() as u32;
 
     // Estimate cruise altitude from cruise speed heuristic
     let cruise_altitude_ft: u32 = if cruise_speed > 300 {
