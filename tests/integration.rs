@@ -4,12 +4,12 @@ use rand::SeedableRng;
 use rand::rngs::SmallRng;
 
 use random_flight::{
-    FlightPlanOptions, aircraft_by_name, generate_flight_plan_with_rng,
+    FlightPlanOptions, aircraft_by_icao_type, generate_flight_plan_with_rng,
 };
 
 #[test]
 fn c172_one_hour_flight() {
-    let ac = aircraft_by_name("C172").unwrap();
+    let ac = aircraft_by_icao_type("C172").unwrap();
     let target = Duration::from_secs(3600);
     let opts = FlightPlanOptions {
         tolerance: Duration::from_secs(15 * 60),
@@ -24,7 +24,7 @@ fn c172_one_hour_flight() {
 
 #[test]
 fn b738_four_hour_flight() {
-    let ac = aircraft_by_name("B738").unwrap();
+    let ac = aircraft_by_icao_type("B738").unwrap();
     let target = Duration::from_secs(4 * 3600);
     let opts = FlightPlanOptions {
         tolerance: Duration::from_secs(15 * 60),
@@ -39,7 +39,7 @@ fn b738_four_hour_flight() {
 
 #[test]
 fn pinned_route_jfk_lax() {
-    let ac = aircraft_by_name("B738").unwrap();
+    let ac = aircraft_by_icao_type("B738").unwrap();
     let opts = FlightPlanOptions {
         departure_icao: Some("KJFK".into()),
         arrival_icao: Some("KLAX".into()),
@@ -55,7 +55,7 @@ fn pinned_route_jfk_lax() {
 
 #[test]
 fn deterministic_with_same_seed() {
-    let ac = aircraft_by_name("A320").unwrap();
+    let ac = aircraft_by_icao_type("A320").unwrap();
     let target = Duration::from_secs(3 * 3600);
     let opts1 = FlightPlanOptions::default();
     let opts2 = FlightPlanOptions::default();
@@ -88,7 +88,7 @@ fn cli_generate_produces_flight_plan() {
 fn cli_aircraft_lists_presets() {
     let bin = env!("CARGO_BIN_EXE_random-flight");
     let output = std::process::Command::new(bin)
-        .args(["aircraft"])
+        .args(["aircraft", "list"])
         .output()
         .expect("failed to run binary");
     let stdout = String::from_utf8_lossy(&output.stdout);
