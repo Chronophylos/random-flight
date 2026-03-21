@@ -117,15 +117,19 @@ fn main() {
 }
 
 fn list_aircraft() {
+    let aircraft = built_in_aircraft();
+    let name_width = aircraft.iter().map(|a| a.name.len()).max().unwrap_or(4).max(4);
+
     println!("Available aircraft presets:\n");
-    println!("  {:<6} {:<22} {:>5}  {:>7}  {:>8}  {:>10}",
-        "ICAO", "NAME", "SPD", "ALT", "RANGE", "MIN RWY");
-    println!("  {:<6} {:<22} {:>5}  {:>7}  {:>8}  {:>10}",
-        "----", "----", "---", "---", "-----", "-------");
-    for a in built_in_aircraft() {
-        println!("  {:<6} {:<22} {:>3} kt  FL{:03}    {:>5.0} nm  {:>6} ft",
+    println!("  {:<6} {:<nw$} {:>5}  {:>7}  {:>8}  {:>10}",
+        "ICAO", "NAME", "SPD", "ALT", "RANGE", "MIN RWY", nw = name_width);
+    let name_sep = "-".repeat(name_width);
+    println!("  {:<6} {:<nw$} {:>5}  {:>7}  {:>8}  {:>10}",
+        "----", name_sep, "---", "---", "-----", "-------", nw = name_width);
+    for a in aircraft {
+        println!("  {:<6} {:<nw$} {:>3} kt  FL{:03}    {:>5.0} nm  {:>6} ft",
             a.icao_type, a.name, a.cruise_speed_ktas, a.cruise_altitude_ft / 100,
-            a.range_nm(), a.min_runway_length_ft);
+            a.range_nm(), a.min_runway_length_ft, nw = name_width);
     }
 }
 
