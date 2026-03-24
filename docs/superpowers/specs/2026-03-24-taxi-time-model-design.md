@@ -74,9 +74,22 @@ pub fn calculate_flight_plan(
 ) -> FlightPlan
 ```
 
+### estimate_distance_for_block_time signature change
+
+This function currently takes `taxi_time: Duration`. It changes to hardcode the medium-airport estimate (16 min) internally, removing the parameter:
+
+```rust
+pub fn estimate_distance_for_block_time(
+    aircraft: &Aircraft,
+    target_block_time: Duration,
+) -> f64
+```
+
 ### Selection algorithm
 
 `FlightPlanOptions` drops the `taxi_time` field. `estimate_distance_for_block_time` uses a fixed medium-airport estimate (16 min total) as the search heuristic. Once a candidate pair is found, `calculate_flight_plan` computes real taxi times from actual airport categories. The existing tolerance window (default 15 min) absorbs the variance between estimated and actual taxi times.
+
+Note: The worst-case taxi variance is 20 min (Large-Large 28 min vs Small-Small 8 min), giving up to 12 min error from the 16 min heuristic. This fits within the 15-min default tolerance with reduced headroom. For the typical use case (mixed airport sizes), the error is much smaller. If retries increase noticeably, the heuristic estimate can be tuned without API changes.
 
 ### CLI output
 
@@ -94,10 +107,22 @@ Taxi In:     10m
 - Remove `taxi_time` from `FlightPlanOptions` in `selection.rs` tests.
 - Add test verifying taxi times vary by airport size (e.g., KJFK large departure vs small airport departure produce different taxi_out values).
 
+## Breaking API changes
+
+This is a breaking change to the public API. The following re-exports in `src/lib.rs` are affected:
+
+- `calculate_flight_plan` — `taxi_time` parameter removed
+- `estimate_distance_for_block_time` — `taxi_time` parameter removed
+- `FlightPlan` — `taxi_time` replaced with `taxi_out` + `taxi_in`
+- `FlightPlanOptions` — `taxi_time` field removed
+- `Airport` — new `size` field added (additive, non-breaking)
+- `AirportSize` — new public re-export
+
 ## Files changed
 
 - `src/airport.rs` — add `AirportSize` enum and field to `Airport`
+- `src/lib.rs` — add `AirportSize` re-export
 - `build.rs` — emit `size` field in generated airport DB
-- `src/flight_plan.rs` — add `taxi_times()`, update `calculate_flight_plan` signature, update `FlightPlan` struct
+- `src/flight_plan.rs` — add `taxi_times()`, update `calculate_flight_plan` and `estimate_distance_for_block_time` signatures, update `FlightPlan` struct
 - `src/selection.rs` — remove `taxi_time` from options, use medium estimate in distance heuristic
 - `src/main.rs` — display taxi out/in separately
