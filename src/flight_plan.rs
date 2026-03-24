@@ -4,18 +4,20 @@ use crate::aircraft::Aircraft;
 use crate::airport::{Airport, AirportSize};
 use crate::geo::haversine_distance_nm;
 
-fn taxi_times(departure: &Airport, arrival: &Airport) -> (Duration, Duration) {
-    let taxi_out = match departure.size {
+fn taxi_out_for(size: AirportSize) -> Duration {
+    match size {
         AirportSize::Large  => Duration::from_secs(18 * 60),
         AirportSize::Medium => Duration::from_secs(10 * 60),
         AirportSize::Small  => Duration::from_secs(5 * 60),
-    };
-    let taxi_in = match arrival.size {
+    }
+}
+
+fn taxi_in_for(size: AirportSize) -> Duration {
+    match size {
         AirportSize::Large  => Duration::from_secs(10 * 60),
         AirportSize::Medium => Duration::from_secs(6 * 60),
         AirportSize::Small  => Duration::from_secs(3 * 60),
-    };
-    (taxi_out, taxi_in)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -85,7 +87,8 @@ pub fn calculate_flight_plan(
             let climb_time = to_duration(climb_time_hrs);
             let descent_time = to_duration(descent_time_hrs);
             let cruise_time = to_duration(cruise_time_hrs);
-            let (taxi_out, taxi_in) = taxi_times(departure, arrival);
+            let taxi_out = taxi_out_for(departure.size);
+            let taxi_in = taxi_in_for(arrival.size);
             let block_time = climb_time + descent_time + cruise_time + taxi_out + taxi_in;
 
             return FlightPlan {
@@ -117,8 +120,7 @@ pub fn estimate_distance_for_block_time(
     aircraft: &Aircraft,
     target_block_time: Duration,
 ) -> f64 {
-    // Use medium-airport taxi estimate (10 min out + 6 min in = 16 min)
-    let taxi_estimate = Duration::from_secs(16 * 60);
+    let taxi_estimate = taxi_out_for(AirportSize::Medium) + taxi_in_for(AirportSize::Medium);
     let flight_time_hrs = target_block_time
         .saturating_sub(taxi_estimate)
         .as_secs_f64() / 3600.0;
