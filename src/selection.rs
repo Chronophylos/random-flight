@@ -10,7 +10,6 @@ use crate::geo::haversine_distance_nm;
 
 pub struct FlightPlanOptions {
     pub tolerance: Duration,
-    pub taxi_time: Duration,
     pub max_retries: u32,
     pub departure_icao: Option<String>,
     pub arrival_icao: Option<String>,
@@ -20,7 +19,6 @@ impl Default for FlightPlanOptions {
     fn default() -> Self {
         Self {
             tolerance: Duration::from_secs(15 * 60),
-            taxi_time: Duration::from_secs(10 * 60),
             max_retries: 100,
             departure_icao: None,
             arrival_icao: None,
@@ -47,7 +45,7 @@ pub fn generate_flight_plan_with_rng(
 
     // Handle pinned airports
     if let (Some(dep_icao), Some(arr_icao)) = (&opts.departure_icao, &opts.arrival_icao) {
-        return plan_for_pair(dep_icao, arr_icao, aircraft, opts.taxi_time);
+        return plan_for_pair(dep_icao, arr_icao, aircraft);
     }
 
     let eligible = airport::filter_by_runway(aircraft.min_runway_length_ft);
@@ -55,7 +53,7 @@ pub fn generate_flight_plan_with_rng(
         return Err(Error::NoValidAirports);
     }
 
-    let target_dist = estimate_distance_for_block_time(aircraft, target_block_time, opts.taxi_time);
+    let target_dist = estimate_distance_for_block_time(aircraft, target_block_time);
     let tolerance_hrs = opts.tolerance.as_secs_f64() / 3600.0;
     let dist_margin = aircraft.cruise_speed_ktas as f64 * tolerance_hrs;
 
@@ -97,7 +95,7 @@ pub fn generate_flight_plan_with_rng(
         }
 
         let arrival = candidates[rng.random_range(0..candidates.len())];
-        let fp = calculate_flight_plan(departure, arrival, aircraft, opts.taxi_time);
+        let fp = calculate_flight_plan(departure, arrival, aircraft);
 
         if fp.block_time.abs_diff(target_block_time) <= opts.tolerance {
             return Ok(fp);
@@ -138,7 +136,6 @@ fn plan_for_pair(
     dep_icao: &str,
     arr_icao: &str,
     aircraft: &Aircraft,
-    taxi_time: Duration,
 ) -> Result<FlightPlan, Error> {
     if dep_icao.eq_ignore_ascii_case(arr_icao) {
         return Err(Error::NoCandidateArrivals);
@@ -162,7 +159,7 @@ fn plan_for_pair(
         });
     }
 
-    Ok(calculate_flight_plan(dep, arr, aircraft, taxi_time))
+    Ok(calculate_flight_plan(dep, arr, aircraft))
 }
 
 #[cfg(test)]

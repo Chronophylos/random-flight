@@ -201,7 +201,8 @@ fn generate(mut args: GenerateArgs) {
             println!("Climb:       {} ({:.0} nm)", format_duration(fp.climb_time), fp.climb_distance_nm);
             println!("Cruise:      {} ({:.0} nm)", format_duration(fp.cruise_time), fp.cruise_distance_nm);
             println!("Descent:     {} ({:.0} nm)", format_duration(fp.descent_time), fp.descent_distance_nm);
-            println!("Taxi:        {}", format_duration(fp.taxi_time));
+            println!("Taxi Out:    {}", format_duration(fp.taxi_out));
+            println!("Taxi In:     {}", format_duration(fp.taxi_in));
             println!();
             println!("SimBrief:    {}", fp.simbrief_url());
         }
