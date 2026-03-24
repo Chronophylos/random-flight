@@ -1,3 +1,10 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AirportSize {
+    Large,
+    Medium,
+    Small,
+}
+
 #[derive(Debug, Clone)]
 pub struct Airport {
     pub icao: &'static str,
@@ -6,6 +13,7 @@ pub struct Airport {
     pub longitude: f64,
     pub elevation_ft: i32,
     pub runway_length_ft: u32,
+    pub size: AirportSize,
 }
 
 include!(concat!(env!("OUT_DIR"), "/airport_db.rs"));
@@ -49,6 +57,24 @@ mod tests {
     #[test]
     fn find_unknown_returns_none() {
         assert!(find_by_icao("ZZZZ").is_none());
+    }
+
+    #[test]
+    fn kjfk_is_large_airport() {
+        let apt = find_by_icao("KJFK").expect("KJFK should exist");
+        assert_eq!(apt.size, AirportSize::Large);
+    }
+
+    #[test]
+    fn airport_sizes_vary() {
+        let all = all_airports();
+        let large = all.iter().filter(|a| a.size == AirportSize::Large).count();
+        let medium = all.iter().filter(|a| a.size == AirportSize::Medium).count();
+        let small = all.iter().filter(|a| a.size == AirportSize::Small).count();
+        assert!(large > 0, "no large airports");
+        assert!(medium > 0, "no medium airports");
+        assert!(small > 0, "no small airports");
+        assert_eq!(large + medium + small, all.len());
     }
 
     #[test]

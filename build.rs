@@ -137,6 +137,7 @@ fn main() {
                 apt.longitude_deg,
                 elevation,
                 runway_len,
+                apt.airport_type.clone(),
             ));
         }
     }
@@ -146,10 +147,16 @@ fn main() {
     let mut f = fs::File::create(&gen_path).expect("create airport_db.rs");
 
     writeln!(f, "static AIRPORTS: &[Airport] = &[").unwrap();
-    for (icao, name, lat, lon, elev, rwy) in &airports {
+    for (icao, name, lat, lon, elev, rwy, airport_type) in &airports {
+        let size_variant = match airport_type.as_str() {
+            "large_airport" => "Large",
+            "medium_airport" => "Medium",
+            "small_airport" => "Small",
+            _ => unreachable!(),
+        };
         writeln!(
             f,
-            "    Airport {{ icao: \"{icao}\", name: \"{name}\", latitude: {lat}_f64, longitude: {lon}_f64, elevation_ft: {elev}, runway_length_ft: {rwy} }},"
+            "    Airport {{ icao: \"{icao}\", name: \"{name}\", latitude: {lat}_f64, longitude: {lon}_f64, elevation_ft: {elev}, runway_length_ft: {rwy}, size: AirportSize::{size_variant} }},"
         )
         .unwrap();
     }
