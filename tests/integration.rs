@@ -85,6 +85,8 @@ fn cli_generate_produces_flight_plan() {
     assert!(stdout.contains("SimBrief:    https://dispatch.simbrief.com/options/custom?"),
         "expected SimBrief URL in output, got: {stdout}");
     assert!(stdout.contains("type=C172"), "expected type=C172 in SimBrief URL, got: {stdout}");
+    assert!(stdout.contains("Taxi Out:"), "expected Taxi Out in output, got: {stdout}");
+    assert!(stdout.contains("Taxi In:"), "expected Taxi In in output, got: {stdout}");
 }
 
 #[test]
