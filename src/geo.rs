@@ -68,8 +68,6 @@ mod tests {
         assert!((d - 162.0).abs() < 5.0, "EDDF-EDDM distance was {d}, expected ~162 nm");
     }
 
-    // --- initial_bearing tests ---
-
     #[test]
     fn bearing_jfk_to_lhr() {
         // JFK to LHR: initial bearing ~51° (northeast)
@@ -115,8 +113,6 @@ mod tests {
         let b = initial_bearing(51.4700, -0.4543, 51.4700, -0.4543);
         assert!(b.is_finite(), "Same-point bearing should be finite, was {b}");
     }
-
-    // --- cardinal_direction tests ---
 
     #[test]
     fn cardinal_boundaries() {

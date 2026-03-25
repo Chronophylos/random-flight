@@ -11,6 +11,7 @@ pub use aircraft::{Aircraft, FuelType, aircraft_by_icao_type, built_in_aircraft}
 pub use airport::{Airport, AirportSize};
 pub use error::Error;
 pub use flight_plan::{FlightPlan, calculate_flight_plan, estimate_distance_for_block_time};
+pub use geo::{cardinal_direction, haversine_distance_nm, initial_bearing};
 pub use import::import_lnmperf;
 pub use profile::load_profile;
 pub use selection::{FlightPlanOptions, generate_flight_plan, generate_flight_plan_with_rng};
