@@ -30,7 +30,7 @@ pub fn initial_bearing(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 /// Converts a bearing (0-360) to an 8-point compass label.
 pub fn cardinal_direction(bearing: f64) -> &'static str {
     const DIRECTIONS: [&str; 8] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-    let index = ((bearing + 22.5) % 360.0 / 45.0) as usize;
+    let index = ((bearing + 22.5).rem_euclid(360.0) / 45.0) as usize;
     DIRECTIONS[index]
 }
 
@@ -143,5 +143,14 @@ mod tests {
         assert_eq!(cardinal_direction(240.0), "SW");
         assert_eq!(cardinal_direction(300.0), "NW");
         assert_eq!(cardinal_direction(340.0), "N");
+    }
+
+    #[test]
+    fn cardinal_negative_and_out_of_range() {
+        assert_eq!(cardinal_direction(-45.0), "NW");
+        assert_eq!(cardinal_direction(-90.0), "W");
+        assert_eq!(cardinal_direction(-180.0), "S");
+        assert_eq!(cardinal_direction(360.0), "N");
+        assert_eq!(cardinal_direction(450.0), "E");
     }
 }
