@@ -7,14 +7,14 @@ rust-version = "1.85"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 humantime = "2"
-rand = "0.9"
+rand = "0.10"
 serde = { version = "1", features = ["derive"] }
-quick-xml = "0.37"
+quick-xml = "0.41"
 thiserror = "2"
-toml = "0.8"
+toml = "1"
 
 [build-dependencies]
 csv = "1"
 serde = { version = "1", features = ["derive"] }
-toml = "0.8"
+toml = "1"
 ureq = "3"

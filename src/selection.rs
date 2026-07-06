@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use crate::aircraft::Aircraft;
 use crate::airport::{self, Airport};
 use crate::error::Error;
-use crate::flight_plan::{calculate_flight_plan, estimate_distance_for_block_time, FlightPlan};
+use crate::flight_plan::{FlightPlan, calculate_flight_plan, estimate_distance_for_block_time};
 use crate::geo::haversine_distance_nm;
 
 pub struct FlightPlanOptions {
@@ -81,8 +81,10 @@ pub fn generate_flight_plan_with_rng(
                 return false;
             }
             let d = haversine_distance_nm(
-                departure.latitude, departure.longitude,
-                a.latitude, a.longitude,
+                departure.latitude,
+                departure.longitude,
+                a.latitude,
+                a.longitude,
             );
             d >= min_dist && d <= max_dist && d <= aircraft.range_nm()
         }));
@@ -102,7 +104,9 @@ pub fn generate_flight_plan_with_rng(
         }
     }
 
-    Err(Error::RetriesExhausted { attempts: opts.max_retries })
+    Err(Error::RetriesExhausted {
+        attempts: opts.max_retries,
+    })
 }
 
 fn pick_departure(
@@ -132,26 +136,22 @@ fn check_runway(airport: &Airport, aircraft: &Aircraft) -> Result<(), Error> {
     Ok(())
 }
 
-fn plan_for_pair(
-    dep_icao: &str,
-    arr_icao: &str,
-    aircraft: &Aircraft,
-) -> Result<FlightPlan, Error> {
+fn plan_for_pair(dep_icao: &str, arr_icao: &str, aircraft: &Aircraft) -> Result<FlightPlan, Error> {
     if dep_icao.eq_ignore_ascii_case(arr_icao) {
         return Err(Error::NoCandidateArrivals);
     }
 
-    let dep = airport::find_by_icao(dep_icao)
-        .ok_or_else(|| Error::UnknownAirport { icao: dep_icao.to_string() })?;
-    let arr = airport::find_by_icao(arr_icao)
-        .ok_or_else(|| Error::UnknownAirport { icao: arr_icao.to_string() })?;
+    let dep = airport::find_by_icao(dep_icao).ok_or_else(|| Error::UnknownAirport {
+        icao: dep_icao.to_string(),
+    })?;
+    let arr = airport::find_by_icao(arr_icao).ok_or_else(|| Error::UnknownAirport {
+        icao: arr_icao.to_string(),
+    })?;
 
     check_runway(dep, aircraft)?;
     check_runway(arr, aircraft)?;
 
-    let distance = haversine_distance_nm(
-        dep.latitude, dep.longitude, arr.latitude, arr.longitude,
-    );
+    let distance = haversine_distance_nm(dep.latitude, dep.longitude, arr.latitude, arr.longitude);
     if distance > aircraft.range_nm() {
         return Err(Error::RangeExceeded {
             distance_nm: distance,
@@ -186,9 +186,11 @@ mod tests {
         let fp = generate_flight_plan_with_rng(ac, target, Some(opts), &mut rng)
             .expect("should find a flight");
 
-        assert!(fp.block_time.abs_diff(target) <= Duration::from_secs(15 * 60),
+        assert!(
+            fp.block_time.abs_diff(target) <= Duration::from_secs(15 * 60),
             "block time {} min not within tolerance of target 120 min",
-            fp.block_time.as_secs() / 60);
+            fp.block_time.as_secs() / 60
+        );
     }
 
     #[test]
@@ -219,7 +221,8 @@ mod tests {
         };
 
         let mut rng = seeded_rng();
-        let result = generate_flight_plan_with_rng(ac, Duration::from_secs(3600), Some(opts), &mut rng);
+        let result =
+            generate_flight_plan_with_rng(ac, Duration::from_secs(3600), Some(opts), &mut rng);
         assert!(matches!(result, Err(Error::UnknownAirport { .. })));
     }
 
@@ -233,7 +236,8 @@ mod tests {
         };
 
         let mut rng = seeded_rng();
-        let result = generate_flight_plan_with_rng(ac, Duration::from_secs(3600), Some(opts), &mut rng);
+        let result =
+            generate_flight_plan_with_rng(ac, Duration::from_secs(3600), Some(opts), &mut rng);
         assert!(matches!(result, Err(Error::RangeExceeded { .. })));
     }
 
@@ -264,7 +268,8 @@ mod tests {
         };
 
         let mut rng = seeded_rng();
-        let result = generate_flight_plan_with_rng(ac, Duration::from_secs(3600), Some(opts), &mut rng);
+        let result =
+            generate_flight_plan_with_rng(ac, Duration::from_secs(3600), Some(opts), &mut rng);
         assert!(matches!(result, Err(Error::NoCandidateArrivals)));
     }
 }

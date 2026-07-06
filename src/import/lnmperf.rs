@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use quick_xml::events::Event;
 use quick_xml::Reader;
+use quick_xml::events::Event;
 
 use super::{gal_to_kg, lbs_to_kg};
 
@@ -80,7 +80,7 @@ fn parse_xml(contents: &str) -> Result<LnmImportResult, String> {
                 current_text.clear();
             }
             Ok(Event::Text(e)) => {
-                current_text = e.unescape().unwrap_or_default().to_string();
+                current_text = e.xml10_content().unwrap_or_default().to_string();
             }
             Ok(Event::End(_)) => {
                 let full_path = path.join("/");
@@ -209,10 +209,13 @@ fn build_toml(raw: RawPerf) -> Result<LnmImportResult, String> {
     let cruise_fuel_kg = raw.cruise_fuel_flow.map(convert_fuel).unwrap_or(0.0);
     let descent_fuel_kg = raw.descent_fuel_flow.map(convert_fuel).unwrap_or(0.0);
 
-    let cruise_speed = raw.cruise_speed.unwrap_or_else(|| {
-        warn_missing("cruise speed", &mut warnings);
-        0.0
-    }).round() as u16;
+    let cruise_speed = raw
+        .cruise_speed
+        .unwrap_or_else(|| {
+            warn_missing("cruise speed", &mut warnings);
+            0.0
+        })
+        .round() as u16;
     let climb_speed = raw.climb_speed.unwrap_or(0.0).round() as u16;
     let climb_rate = raw.climb_rate.unwrap_or(0.0).round() as u16;
     let descent_speed = raw.descent_speed.unwrap_or(0.0).round() as u16;
